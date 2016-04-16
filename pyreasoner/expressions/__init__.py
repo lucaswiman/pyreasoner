@@ -7,6 +7,7 @@ import re
 from functools import reduce
 from itertools import chain
 
+import pycosat
 from six import with_metaclass
 
 
@@ -282,3 +283,78 @@ def get_truth_table(expr):
 
 def is_logically_equivalent(expr1, expr2):
     return get_free_variables(expr1) == get_free_variables(expr2)
+
+
+def solve_SAT(expr, num_solutions=None):
+    """
+    Returns a iterator of {var: truth value} assignments which satisfy the given
+    expression.
+
+    Expressions should not include a variable named ``__TRUE__`` or ``__FALSE__``,
+    since those are used in the internals of this function as stand-ins for
+    truth literals.
+    """
+    expr = convert_to_conjunctive_normal_form(expr)
+
+    # Hack to include truth literals (not supported by pycosat API.
+    # Trivial constraints are added to the list of constraints forcing these variables
+    # to be True/False in any solutions.
+    T = Var('__TRUE__')
+    F = Var('__FALSE__')
+
+    # This forces the variable T to be True, and F to be False. Note that this is still
+    # conjunctive normal form, since T and F are literals.
+    expr = expr & T & ~F
+
+    vars = list(get_free_variables(expr))
+
+    # 1-index, since pycosat expects nonzero integers, smdh.
+    var2pycosat_index = {v: i + 1 for i, v in enumerate(vars)}
+
+
+    def get_pycosat_index(literal):
+        # pycosat accepts input as a list of CNF subclauses (disjunctions of variables
+        # or negated variables).
+        if isinstance(literal, Not):
+            return -var2pycosat_index[literal.children[0]]
+        elif isinstance(literal, Var):
+            return var2pycosat_index[literal]
+        elif isinstance(literal, ExpressionNode):
+            raise TypeError('Unhandled literal type %r' % literal)
+        else:
+            # Here we assume this is some other python object, so we consider it
+            # a boolean.
+            return var2pycosat_index[T] if literal else -var2pycosat_index[T]
+
+    constraints = []
+    for child in expr.children:
+        # Child is one of a literal or a disjunction of literals.
+        if isinstance(child, (Not, Var)):
+            constraints.append([get_pycosat_index(child)])
+        else:  # isinstance(child, Or)
+            constraints.append(map(get_pycosat_index, child.children))
+    solutions = (
+        pycosat.itersolve(constraints)
+        if num_solutions is None else pycosat.itersolve(constraints, num_solutions))
+    for solution in solutions:
+        namespace = {}
+        for i, var_assignment in enumerate(solution):
+            # pycosat returns the solution as a list of positive or negative
+            # 1-indexed variable numbers. Positive indices correspond to assignments
+            # to True, and negative corresponds to False.
+            as_bool = var_assignment > 0
+            var = vars[i]
+            if var == T:
+                assert as_bool, 'Bug: Solution has a Falsey solution to the T literal.'
+            elif var == F:
+                assert not as_bool, 'Bug: Solution has a Truthy solution to the F literal.'
+            else:
+                namespace[var] = as_bool
+        yield namespace
+
+
+def is_satisfiable(expr):
+    """
+    Returns True if expr is satisfiable.
+    """
+    return next(solve_SAT(expr, 1), None) is not None

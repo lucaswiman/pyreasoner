@@ -6,3 +6,4 @@ nose
 pycosat
 typing
 six
+ipython
