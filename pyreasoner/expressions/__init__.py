@@ -10,6 +10,7 @@ from six import with_metaclass
 
 
 class Evaluable(with_metaclass(abc.ABCMeta)):
+
     @abc.abstractmethod
     def eval(self, namespace):
         pass
@@ -29,7 +30,8 @@ def variables(names):
 
 
 def is_boolean_atom(obj):
-    return isinstance(obj, (Not, Var, bool))
+    return isinstance(obj, (Var, bool)) or (
+        isinstance(obj, Not) and isinstance(obj.children[0], (Var, bool)))
 
 
 def is_disjunction_of_atoms(expr):
@@ -57,13 +59,22 @@ def convert_to_conjunctive_normal_form(expr):
     elif isinstance(expr, Not):
         return convert_to_conjunctive_normal_form(expr.distribute_inwards())
     elif isinstance(expr, Or):
-        return reduce(
-            operator.and_
-            (convert_to_conjunctive_normal_form(Not(child)) for child in expr.children))
+        collapsed = expr.recursive_collapse()
+        if is_disjunction_of_atoms(collapsed):
+            return collapsed
+        for i, child in enumerate(collapsed.children):
+            if isinstance(child, And):
+                other_disjuncts = Or(*chain(collapsed.children[:i], collapsed.children[i + 1:]))
+                result = convert_to_conjunctive_normal_form(
+                    And(*(descendant | other_disjuncts for descendant in child.children)))
+                return result
+        else:
+            assert False, expr
     elif isinstance(expr, And):
         return reduce(
             operator.and_,
-            (convert_to_conjunctive_normal_form(child) for child in expr.children))
+            (convert_to_conjunctive_normal_form(child) for child in expr.children),
+            And())
     else:
         return expr
 
@@ -103,7 +114,7 @@ class Var(ExpressionNode):
         return hash(self.name)
 
     def __eq__(self, other):
-        return self.name == other.name
+        return isinstance(other, Var) and self.name == other.name
 
 
 class BooleanOperation(ExpressionNode):
@@ -135,6 +146,18 @@ class Or(BooleanOperation):
             return Or(*chain(self.children, other.children))
         else:
             return Or(*chain(self.children, [other]))
+
+    def recursive_collapse(self):
+        """
+        Returns an Or node whose Or children have been promoted to the top level
+        """
+        children = []
+        for child in self.children:
+            if isinstance(child, Or):
+                children.extend(child.recursive_collapse().children)
+            else:
+                children.append(child)
+        return Or(*children)
 
 
 class And(BooleanOperation):
