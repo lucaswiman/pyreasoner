@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, unicode_literals
 
 import abc
+import itertools
 import operator
 import re
 from functools import reduce
@@ -9,15 +10,8 @@ from itertools import chain
 from six import with_metaclass
 
 
-class Evaluable(with_metaclass(abc.ABCMeta)):
-
-    @abc.abstractmethod
-    def eval(self, namespace):
-        pass
-
-
 def eval_expr(expr, namespace):
-    if isinstance(expr, Evaluable):
+    if isinstance(expr, ExpressionNode):
         return expr.eval(namespace)
     else:
         return expr
@@ -79,7 +73,16 @@ def convert_to_conjunctive_normal_form(expr):
         return expr
 
 
-class ExpressionNode(object):
+class ExpressionNode(with_metaclass(abc.ABCMeta)):
+
+    @abc.abstractmethod
+    def eval(self, namespace):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_free_variables(self):
+
+        raise NotImplementedError
     def __or__(self, other):
         return Or(self, other)
 
@@ -105,6 +108,9 @@ class Var(ExpressionNode):
             return namespace[self.name]
         return self
 
+    def get_free_variables(self):
+        return {self}
+
     def __str__(self):
         return self.name
 
@@ -122,6 +128,10 @@ class BooleanOperation(ExpressionNode):
 
     def __init__(self, *children):
         self.children = children
+
+    def get_free_variables(self):
+        # operator.or_ is the set union operation.
+        return reduce(operator.or_, (get_free_variables(child) for child in self.children))
 
     def eval(self, namespace):
         evaluated = [eval_expr(child, namespace) for child in self.children]
@@ -189,6 +199,9 @@ class Not(BooleanOperation):
         else:
             raise TypeError(evaluated)
 
+    def get_free_variables(self):
+        return get_free_variables(self.children[0])
+
     def __str__(self):
         return '~%s' % self.children[0]
 
@@ -209,3 +222,26 @@ class Not(BooleanOperation):
             return Or(*(Not(descendant).distribute_inwards() for descendant in child.children))
         else:
             return self
+
+
+def get_free_variables(expr):
+    if hasattr(expr, 'get_free_variables'):
+        return expr.get_free_variables()
+    else:
+        return set()
+
+
+def get_truth_table(expr):
+    """
+    Returns a ``{var_assignment: truth_value}`` dict representing the truth_table for the
+    given expression.
+
+    ``var_assignment`` is a tuple, whose attributes are alphabetically ordered variables
+    of all the free variables in ``expr``.
+    """
+    variables = sorted(get_free_variables(expr), key=operator.attrgetter('name'))
+    bools = [True, False]
+    return {
+        assignment: expr.eval({var: value for var, value in zip(variables, assignment)})
+        for assignment in itertools.product(*([bools] * len(variables)))
+    }

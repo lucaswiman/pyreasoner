@@ -1,7 +1,11 @@
 from unittest import TestCase
 
+from ..expressions import And
 from ..expressions import convert_to_conjunctive_normal_form
+from ..expressions import get_free_variables
+from ..expressions import get_truth_table
 from ..expressions import is_conjunctive_normal_form
+from ..expressions import Or
 from ..expressions import variables
 
 a, b, c, d, e = variables('a b c d e')
@@ -37,3 +41,39 @@ class TestConjunctiveNormalForm(TestCase):
             self.assertEqual(
                 convert_to_conjunctive_normal_form(expr),
                 solution)
+
+
+class TestGetFreeVariables(TestCase):
+    def test(self):
+        self.assertEqual(get_free_variables(a), {a})
+        self.assertEqual(get_free_variables(~a), {a})
+        self.assertEqual(get_free_variables(a | a), {a})
+        self.assertEqual(get_free_variables(a & a), {a})
+        self.assertEqual(get_free_variables(a & b), {a, b})
+        self.assertEqual(get_free_variables(~(a & b)), {a, b})
+        self.assertEqual(get_free_variables(~(a | b)), {a, b})
+
+
+class TestTruthTable(TestCase):
+    def test_and(self):
+        and_table = {
+            (b1, b2): b1 and b2
+            for b1, b2 in [(True, True), (True, False), (False, True), (False, False)]
+        }
+
+        self.assertEqual(get_truth_table(a & b), and_table)
+
+    def test_or(self):
+        or_table = {
+            (b1, b2): b1 or b2
+            for b1, b2 in [(True, True), (True, False), (False, True), (False, False)]
+        }
+
+        self.assertEqual(get_truth_table(a | b), or_table)
+
+    def test_negation(self):
+        self.assertEqual(get_truth_table(~a), {(True, ): False, (False, ): True})
+
+    def test_no_free_variables(self):
+        self.assertEqual(get_truth_table(Or(True, False)), {(): True})
+        self.assertEqual(get_truth_table(And(True, False)), {(): False})
