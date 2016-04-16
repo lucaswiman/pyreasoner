@@ -114,15 +114,18 @@ class Var(ExpressionNode):
         self.name = name
 
     def reify(self, namespace):
+        """
+        Replace with the assignment in ``namespace``.
+
+        Note that this does not follow chained a->b->c namespace substitutions
+        as ``eval`` does.
+        """
         if self in namespace:
             ret = namespace[self]
         elif self.name in namespace:
             ret = namespace[self.name]
         else:
             ret = self
-        if ret != self:
-            # Note this can lead to infinite recursion, e.g. ``x.reify({x: y, y: x})``.
-            ret = reify_expr(ret, namespace)
         return ret
 
     def eval(self, namespace):
@@ -226,7 +229,7 @@ class Not(BooleanOperation):
         elif isinstance(evaluated, bool):
             # Boolean
             return not evaluated
-        else: # pragma:nocover
+        else:  # pragma:nocover
             raise TypeError(evaluated)
 
     def get_free_variables(self):

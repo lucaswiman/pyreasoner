@@ -103,7 +103,8 @@ class TestTruthTable(TestCase):
 
 class TestReify(TestCase):
     def test_chained_evaluation(self):
-        self.assertEqual(a.reify({a: b, b: c}), c)
+        self.assertEqual(a.reify({a: b, b: c}), b)
+        self.assertEqual(a.eval({a: b, b: 1}), 1)
         self.assertEqual(a.reify({b: c}), a)
 
     def test_or(self):
@@ -115,3 +116,18 @@ class TestReify(TestCase):
     def test_negation(self):
         self.assertEqual((~a).reify({a: False}), Not(False))
         self.assertEqual((~a).reify({c: a}), ~a)
+
+    def test_idempotency_with_empty_namespace(self):
+        for expr in CNF_EXPRESSIONS:
+            self.assertEqual(expr.reify({}), expr)
+
+    def test_permutation_of_variables(self):
+        for expr in CNF_EXPRESSIONS:
+            vars = list(get_free_variables(expr))
+            perm = vars[1:] + [vars[0]]
+            self.assertNotEqual(vars, perm)
+            assignment = dict(zip(vars, perm))
+            reverse_assignment = dict(zip(perm, vars))
+            self.assertNotEqual(expr.reify(assignment), expr)
+            self.assertEqual(expr.reify(assignment).reify(reverse_assignment), expr)
+            self.assertEqual(expr.reify(reverse_assignment).reify(assignment), expr)
