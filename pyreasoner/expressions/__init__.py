@@ -76,8 +76,8 @@ def convert_to_conjunctive_normal_form(expr):
             operator.and_,
             (convert_to_conjunctive_normal_form(child) for child in expr.children),
             And())
-    else:
-        return expr
+    else:  # pragma:nocover
+        assert False, 'Unhandled: %r' % expr
 
 
 class ExpressionNode(with_metaclass(abc.ABCMeta)):
@@ -226,7 +226,7 @@ class Not(BooleanOperation):
         elif isinstance(evaluated, bool):
             # Boolean
             return not evaluated
-        else:
+        else: # pragma:nocover
             raise TypeError(evaluated)
 
     def get_free_variables(self):
