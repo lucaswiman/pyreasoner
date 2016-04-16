@@ -7,3 +7,4 @@ nose
 pycosat
 typing
 six
+flake8-import-order
