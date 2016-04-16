@@ -48,19 +48,18 @@ def is_conjunctive_normal_form(expr):
 
 
 def convert_to_conjunctive_normal_form(expr):
+    """
+    Dumb conjunctive normal form algorithm based off this algorithm:
+    https://april.eecs.umich.edu/courses/eecs492_w10/wiki/images/6/6b/CNF_conversion.pdf
+    """
     if is_disjunction_of_atoms(expr):
         return expr
     elif isinstance(expr, Not):
         return convert_to_conjunctive_normal_form(expr.distribute_inwards())
     elif isinstance(expr, Or):
-        if len(expr.children) == 1:
-            return expr.children[0]
-        split = len(expr.children // 2)
-        left, right = expr.children[:split], expr.children[split:]
-        return convert_to_conjunctive_normal_form(
-            And(*(Not(child).distribute_inwards() for child in left))
-            & And(*(Not(child).distribute_inwards() for child in right))
-        )
+        return reduce(
+            operator.and_
+            (convert_to_conjunctive_normal_form(Not(child)) for child in expr.children))
     elif isinstance(expr, And):
         return reduce(
             operator.and_,
