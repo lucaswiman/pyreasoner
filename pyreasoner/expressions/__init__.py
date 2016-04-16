@@ -8,6 +8,7 @@ import operator
 
 from six import with_metaclass
 
+
 class Evaluable(with_metaclass(abc.ABCMeta)):
     @abc.abstractmethod
     def eval(self, namespace):
@@ -19,6 +20,7 @@ def eval_expr(expr, namespace):
         return expr.eval(namespace)
     else:
         return expr
+
 
 def variables(names):
     if not isinstance(input, (list, tuple)):
@@ -65,6 +67,7 @@ def convert_to_conjunctive_normal_form(expr):
             (convert_to_conjunctive_normal_form(child) for child in expr.children))
     else:
         return expr
+
 
 class ExpressionNode(object):
     def __or__(self, other):
