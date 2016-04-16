@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from ..expressions import is_conjunctive_normal_form
 from ..expressions import convert_to_conjunctive_normal_form
+from ..expressions import is_conjunctive_normal_form
 from ..expressions import variables
 
 a, b, c, d, e = variables('a b c d e')

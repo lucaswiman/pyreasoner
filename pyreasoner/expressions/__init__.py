@@ -1,10 +1,10 @@
-from __future__ import division, absolute_import, unicode_literals
+from __future__ import absolute_import, division, unicode_literals
 
 import abc
+import operator
+import re
 from functools import reduce
 from itertools import chain
-import re
-import operator
 
 from six import with_metaclass
 
