@@ -17,6 +17,13 @@ def eval_expr(expr, namespace):
         return expr
 
 
+def reify_expr(expr, namespace):
+    if isinstance(expr, ExpressionNode):
+        return expr.reify(namespace)
+    else:
+        return expr
+
+
 def variables(names):
     if not isinstance(input, (list, tuple)):
         names = re.split(r'[, ]', names)
@@ -80,9 +87,14 @@ class ExpressionNode(with_metaclass(abc.ABCMeta)):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def reify(self, namespace):
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def get_free_variables(self):
 
         raise NotImplementedError
+
     def __or__(self, other):
         return Or(self, other)
 
@@ -101,12 +113,24 @@ class Var(ExpressionNode):
             name = 'x_%s' % id(self)
         self.name = name
 
-    def eval(self, namespace):
+    def reify(self, namespace):
         if self in namespace:
-            return namespace[self]
+            ret = namespace[self]
         elif self.name in namespace:
-            return namespace[self.name]
-        return self
+            ret = namespace[self.name]
+        else:
+            ret = self
+        if ret != self:
+            # Note this can lead to infinite recursion, e.g. ``x.reify({x: y, y: x})``.
+            ret = reify_expr(ret, namespace)
+        return ret
+
+    def eval(self, namespace):
+        reified = self.reify(namespace)
+        if reified != self and hasattr(reified, 'eval'):
+            # Handle the Var('x').eval({'x': Var('y'), 'y': 10}) case.
+            return reified.eval(namespace)
+        return reified
 
     def get_free_variables(self):
         return {self}
@@ -133,10 +157,14 @@ class BooleanOperation(ExpressionNode):
         # operator.or_ is the set union operation.
         return reduce(operator.or_, (get_free_variables(child) for child in self.children))
 
+    def reify(self, namespace):
+        reified = [reify_expr(child, namespace) for child in self.children]
+        return type(self)(*reified)
+
     def eval(self, namespace):
         evaluated = [eval_expr(child, namespace) for child in self.children]
-        if hasattr(self, 'default'):
-            return reduce(self.operator, evaluated, self.default)
+        if hasattr(self, 'default_reduce_value'):
+            return reduce(self.operator, evaluated, self.default_reduce_value)
         return reduce(self.operator, evaluated)
 
     def __eq__(self, other):
@@ -145,6 +173,7 @@ class BooleanOperation(ExpressionNode):
 
 class Or(BooleanOperation):
     operator = operator.or_
+    default_reduce_value = False  # An empty disjunction is defined to be True.
 
     def __str__(self):
         return '(%s)' % ' | '.join(str(child) for child in self.children)
@@ -172,6 +201,7 @@ class Or(BooleanOperation):
 
 class And(BooleanOperation):
     operator = operator.and_
+    default_reduce_value = True  # An empty conjunction is defined to be False.
 
     def __str__(self):
         return '(%s)' % ' & '.join(str(child) for child in self.children)

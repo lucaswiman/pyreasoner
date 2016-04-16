@@ -5,6 +5,7 @@ from ..expressions import convert_to_conjunctive_normal_form
 from ..expressions import get_free_variables
 from ..expressions import get_truth_table
 from ..expressions import is_conjunctive_normal_form
+from ..expressions import Not
 from ..expressions import Or
 from ..expressions import variables
 
@@ -77,3 +78,19 @@ class TestTruthTable(TestCase):
     def test_no_free_variables(self):
         self.assertEqual(get_truth_table(Or(True, False)), {(): True})
         self.assertEqual(get_truth_table(And(True, False)), {(): False})
+
+
+class TestReify(TestCase):
+    def test_chained_evaluation(self):
+        self.assertEqual(a.reify({a: b, b: c}), c)
+        self.assertEqual(a.reify({b: c}), a)
+
+    def test_or(self):
+        self.assertEqual((a | c).reify({c: a}), a | a)
+
+    def test_and(self):
+        self.assertEqual((a & c).reify({c: a}), a & a)
+
+    def test_negation(self):
+        self.assertEqual((~a).reify({a: False}), Not(False))
+        self.assertEqual((~a).reify({c: a}), ~a)
