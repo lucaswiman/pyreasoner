@@ -1,12 +1,15 @@
 from unittest import TestCase
 
+from nose.tools import assert_true
+
 from ..expressions import And
+from ..expressions import Not
+from ..expressions import Or
 from ..expressions import convert_to_conjunctive_normal_form
 from ..expressions import get_free_variables
 from ..expressions import get_truth_table
 from ..expressions import is_conjunctive_normal_form
-from ..expressions import Not
-from ..expressions import Or
+from ..expressions import is_logically_equivalent
 from ..expressions import variables
 
 a, b, c, d, e = variables('a b c d e')
@@ -24,13 +27,19 @@ NON_CNF_EXPRESSIONS_WITH_SOLUTIONS = (
 )
 
 
+def assert_logically_equivalent(expr1, expr2):
+    assert_true(
+        is_logically_equivalent(expr1, expr2),
+        '%r is not logically equivalent to %r' % (expr1, expr2))
+
+
 class TestConjunctiveNormalForm(TestCase):
     def test_cnf_expressions(self):
         for cnf_expression in CNF_EXPRESSIONS:
             self.assertTrue(
                 is_conjunctive_normal_form(cnf_expression),
                 cnf_expression)
-            self.assertEqual(
+            assert_logically_equivalent(
                 convert_to_conjunctive_normal_form(cnf_expression),
                 cnf_expression)
 
@@ -39,7 +48,7 @@ class TestConjunctiveNormalForm(TestCase):
             self.assertFalse(
                 is_conjunctive_normal_form(expr),
                 expr)
-            self.assertEqual(
+            assert_logically_equivalent(
                 convert_to_conjunctive_normal_form(expr),
                 solution)
 

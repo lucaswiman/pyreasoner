@@ -275,3 +275,7 @@ def get_truth_table(expr):
         assignment: expr.eval({var: value for var, value in zip(variables, assignment)})
         for assignment in itertools.product(*([bools] * len(variables)))
     }
+
+
+def is_logically_equivalent(expr1, expr2):
+    return get_free_variables(expr1) == get_free_variables(expr2)
