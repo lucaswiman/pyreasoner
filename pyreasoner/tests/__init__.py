@@ -36,6 +36,21 @@ def assert_logically_equivalent(expr1, expr2):
         '%r is not logically equivalent to %r' % (expr1, expr2))
 
 
+class TestExpressionBooleanOperations(TestCase):
+    def test_operations(self):
+        self.assertEqual(a & True, And(a, True))
+        self.assertEqual(a | True, Or(a, True))
+        self.assertEqual(Or(a, b) | Or(c, d), Or(a, b, c, d))
+        self.assertEqual(And(a, b) & And(c, d), And(a, b, c, d))
+        self.assertEqual(And(a, b) | And(c, d), Or(a & b, c & d))
+
+    def test_reverse_operations(self):
+        self.assertEqual(a & True, And(a, True))
+        self.assertEqual(True & a, And(True, a))
+        self.assertEqual(a | True, Or(a, True))
+        self.assertEqual(True | a, Or(True, a))
+
+
 class TestConjunctiveNormalForm(TestCase):
     def test_cnf_expressions(self):
         for cnf_expression in CNF_EXPRESSIONS:

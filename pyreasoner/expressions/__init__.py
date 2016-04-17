@@ -105,8 +105,14 @@ class ExpressionNode(with_metaclass(abc.ABCMeta)):
     def __or__(self, other):
         return Or(self, other)
 
+    def __ror__(self, other):
+        return Or(other, self)
+
     def __and__(self, other):
         return And(self, other)
+
+    def __rand__(self, other):
+        return And(other, self)
 
     def __invert__(self):
         return Not(self)
@@ -196,6 +202,12 @@ class Or(BooleanOperation):
         else:
             return Or(*chain(self.children, [other]))
 
+    def __ror__(self, other):
+        if isinstance(other, Or):
+            return Or(*chain(other.children, self.children))
+        else:
+            return Or(*chain([other], self.children))
+
     def recursive_collapse(self):
         """
         Returns an Or node whose Or children have been promoted to the top level
@@ -223,6 +235,12 @@ class And(BooleanOperation):
             return And(*chain(self.children, other.children))
         else:
             return And(*chain(self.children, [other]))
+
+    def __rand__(self, other):
+        if isinstance(other, And):
+            return And(*chain(other.children, self.children))
+        else:
+            return And(*chain([other], self.children))
 
 
 class Not(BooleanOperation):
