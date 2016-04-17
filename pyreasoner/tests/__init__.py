@@ -168,3 +168,10 @@ class TestSAT(TestCase):
         all_solutions = list(solve_SAT(expr))
         self.assertIn(expected_solution, all_solutions)
         self.assertEqual(len(all_solutions), 9)
+
+    def test_expression_with_literal(self):
+        self.assertTrue(is_satisfiable(True))
+        self.assertEqual(list(solve_SAT(True)), [{}])
+        self.assertFalse(is_satisfiable(False))
+        self.assertTrue(is_satisfiable(Or(True, False, a)))
+        self.assertFalse(is_satisfiable(And(True, False, a)))

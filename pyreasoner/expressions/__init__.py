@@ -8,6 +8,7 @@ from functools import reduce
 from itertools import chain
 
 import pycosat
+
 from six import with_metaclass
 
 
@@ -51,7 +52,7 @@ def is_conjunctive_normal_form(expr):
     )
 
 
-def convert_to_conjunctive_normal_form(expr):
+def _convert_to_conjunctive_normal_form(expr):
     """
     Dumb conjunctive normal form algorithm based off this algorithm:
     https://april.eecs.umich.edu/courses/eecs492_w10/wiki/images/6/6b/CNF_conversion.pdf
@@ -59,7 +60,7 @@ def convert_to_conjunctive_normal_form(expr):
     if is_disjunction_of_atoms(expr):
         return expr
     elif isinstance(expr, Not):
-        return convert_to_conjunctive_normal_form(expr.distribute_inwards())
+        return _convert_to_conjunctive_normal_form(expr.distribute_inwards())
     elif isinstance(expr, Or):
         collapsed = expr.recursive_collapse()
         if is_disjunction_of_atoms(collapsed):
@@ -67,7 +68,7 @@ def convert_to_conjunctive_normal_form(expr):
         for i, child in enumerate(collapsed.children):
             if isinstance(child, And):
                 other_disjuncts = Or(*chain(collapsed.children[:i], collapsed.children[i + 1:]))
-                result = convert_to_conjunctive_normal_form(
+                result = _convert_to_conjunctive_normal_form(
                     And(*(descendant | other_disjuncts for descendant in child.children)))
                 return result
         else:
@@ -75,10 +76,15 @@ def convert_to_conjunctive_normal_form(expr):
     elif isinstance(expr, And):
         return reduce(
             operator.and_,
-            (convert_to_conjunctive_normal_form(child) for child in expr.children),
+            (_convert_to_conjunctive_normal_form(child) for child in expr.children),
             And())
     else:  # pragma: no cover
         assert False, 'Unhandled: %r' % expr
+
+
+def convert_to_conjunctive_normal_form(expr):
+    # Hack handle the boolean literal case so the return value is always an And node.
+    return And() & _convert_to_conjunctive_normal_form(expr)
 
 
 class ExpressionNode(with_metaclass(abc.ABCMeta)):
@@ -311,7 +317,6 @@ def solve_SAT(expr, num_solutions=None):
     # 1-index, since pycosat expects nonzero integers, smdh.
     var2pycosat_index = {v: i + 1 for i, v in enumerate(vars)}
 
-
     def get_pycosat_index(literal):
         # pycosat accepts input as a list of CNF subclauses (disjunctions of variables
         # or negated variables).
@@ -329,10 +334,11 @@ def solve_SAT(expr, num_solutions=None):
     constraints = []
     for child in expr.children:
         # Child is one of a literal or a disjunction of literals.
-        if isinstance(child, (Not, Var)):
-            constraints.append([get_pycosat_index(child)])
-        else:  # isinstance(child, Or)
+        if isinstance(child, Or):
             constraints.append(map(get_pycosat_index, child.children))
+        else:  # Not, Var, boolean literals, etc.
+            constraints.append([get_pycosat_index(child)])
+
     solutions = (
         pycosat.itersolve(constraints)
         if num_solutions is None else pycosat.itersolve(constraints, num_solutions))
