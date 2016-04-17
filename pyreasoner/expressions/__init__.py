@@ -77,7 +77,7 @@ def convert_to_conjunctive_normal_form(expr):
             operator.and_,
             (convert_to_conjunctive_normal_form(child) for child in expr.children),
             And())
-    else:  # pragma:nocover
+    else:  # pragma: no cover
         assert False, 'Unhandled: %r' % expr
 
 
@@ -230,7 +230,7 @@ class Not(BooleanOperation):
         elif isinstance(evaluated, bool):
             # Boolean
             return not evaluated
-        else:  # pragma:nocover
+        else:  # pragma: no cover
             raise TypeError(evaluated)
 
     def get_free_variables(self):
@@ -319,7 +319,7 @@ def solve_SAT(expr, num_solutions=None):
             return -var2pycosat_index[literal.children[0]]
         elif isinstance(literal, Var):
             return var2pycosat_index[literal]
-        elif isinstance(literal, ExpressionNode):
+        elif isinstance(literal, ExpressionNode):  # pragma: no cover
             raise TypeError('Unhandled literal type %r' % literal)
         else:
             # Here we assume this is some other python object, so we consider it

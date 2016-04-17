@@ -11,6 +11,8 @@ from ..expressions import get_free_variables
 from ..expressions import get_truth_table
 from ..expressions import is_conjunctive_normal_form
 from ..expressions import is_logically_equivalent
+from ..expressions import is_satisfiable
+from ..expressions import solve_SAT
 from ..expressions import variables
 
 a, b, c, d, e = variables('a b c d e')
@@ -131,3 +133,38 @@ class TestReify(TestCase):
             self.assertNotEqual(expr.reify(assignment), expr)
             self.assertEqual(expr.reify(assignment).reify(reverse_assignment), expr)
             self.assertEqual(expr.reify(reverse_assignment).reify(assignment), expr)
+
+
+class TestSAT(TestCase):
+    def test_pycosat_example(self):
+        # Verify the example from the pycosat README works as expected:
+        # The following CNF should have 9=18/2 solutions, which should include
+        #  x1 = x5 = True, x2 = x3 = x4 = False
+        #
+        # p cnf 5 3
+        # 1 -5 4 0
+        # -1 5 3 4 0
+        # -3 -4 0
+
+        # Note x2 is omitted, since we don't have an API to get solution which
+        # don't include free variables. And, really, it's kinda pointless to
+        # make one AFAICT.
+        x1, x3, x4, x5 = variables('x1 x3 x4 x5')
+
+        expr = (
+            (x1 | ~x5 | x4) &
+            (~x1 | x5 | x3 | x4) &
+            (~x3 | ~x4)
+        )
+
+        self.assertTrue(is_satisfiable(expr))
+        expected_solution = {
+            x1: True,
+            x3: False,
+            x4: False,
+            x5: True,
+        }
+        self.assertTrue(expr.eval(expected_solution))
+        all_solutions = list(solve_SAT(expr))
+        self.assertIn(expected_solution, all_solutions)
+        self.assertEqual(len(all_solutions), 9)
