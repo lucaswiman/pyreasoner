@@ -205,7 +205,7 @@ class Or(BooleanOperation):
             return Or(*chain(self.children, [other]))
 
     def __ror__(self, other):
-        return Or(*chain([other], self.children))
+        return Or(other, *self.children)
 
     def recursive_collapse(self):
         """
@@ -236,7 +236,7 @@ class And(BooleanOperation):
             return And(*chain(self.children, [other]))
 
     def __rand__(self, other):
-        return And(*chain([other], self.children))
+        return And(other, *self.children)
 
 
 class Not(BooleanOperation):
