@@ -181,9 +181,7 @@ class BooleanOperation(ExpressionNode):
 
     def eval(self, namespace):
         evaluated = [eval_expr(child, namespace) for child in self.children]
-        if hasattr(self, 'default_reduce_value'):
-            return reduce(self.operator, evaluated, self.default_reduce_value)
-        return reduce(self.operator, evaluated)
+        return reduce(self.operator, evaluated, self.default_reduce_value)
 
     def __eq__(self, other):
         return type(self) == type(other) and self.children == other.children
@@ -248,7 +246,6 @@ class Not(BooleanOperation):
         if isinstance(evaluated, ExpressionNode):
             return ~evaluated
         elif isinstance(evaluated, bool):
-            # Boolean
             return not evaluated
         else:  # pragma: no cover
             raise TypeError(evaluated)
@@ -328,7 +325,7 @@ def solve_SAT(expr, num_solutions=None):
 
     vars = list(get_free_variables(expr))
 
-    # 1-index, since pycosat expects nonzero integers, smdh.
+    # 1-index, since pycosat expects nonzero integers.
     var2pycosat_index = {v: i + 1 for i, v in enumerate(vars)}
 
     def get_pycosat_index(literal):
@@ -345,13 +342,12 @@ def solve_SAT(expr, num_solutions=None):
             # a boolean.
             return var2pycosat_index[T] if literal else -var2pycosat_index[T]
 
-    constraints = []
-    for child in expr.children:
-        # Child is one of a literal or a disjunction of literals.
-        if isinstance(child, Or):
-            constraints.append(map(get_pycosat_index, child.children))
-        else:  # Not, Var, boolean literals, etc.
-            constraints.append([get_pycosat_index(child)])
+    constraints = [
+        map(get_pycosat_index,
+            # Child is one of a literal or a disjunction of literals.
+            (child.children if isinstance(child, Or) else [child]))
+        for child in expr.children
+    ]
 
     solutions = (
         pycosat.itersolve(constraints)
@@ -364,10 +360,9 @@ def solve_SAT(expr, num_solutions=None):
             # to True, and negative corresponds to False.
             as_bool = var_assignment > 0
             var = vars[i]
-            if var == T:
-                assert as_bool, 'Bug: Solution has a Falsey solution to the T literal.'
-            elif var == F:
-                assert not as_bool, 'Bug: Solution has a Truthy solution to the F literal.'
+            if var in (T, F):
+                assert as_bool == (var == T), \
+                    'Bug: Solution has an invalid solution to the T/F literals.'
             else:
                 namespace[var] = as_bool
         yield namespace
