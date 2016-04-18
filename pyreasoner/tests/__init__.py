@@ -6,6 +6,7 @@ from nose.tools import assert_true
 from ..expressions import And
 from ..expressions import Not
 from ..expressions import Or
+from ..expressions import Var
 from ..expressions import convert_to_conjunctive_normal_form
 from ..expressions import get_free_variables
 from ..expressions import get_truth_table
@@ -41,6 +42,7 @@ class TestConstructVariables(TestCase):
         self.assertEqual(variables('a b c'), variables('a, b, c'))
         self.assertEqual(variables('a b c'), [a, b, c])
         self.assertEqual(variables(['a', 'b', 'c']), [a, b, c])
+        self.assertTrue(Var().name)
 
 
 class TestExpressionBooleanOperations(TestCase):
@@ -56,6 +58,11 @@ class TestExpressionBooleanOperations(TestCase):
         self.assertEqual(True & a, And(True, a))
         self.assertEqual(a | True, Or(a, True))
         self.assertEqual(True | a, Or(True, a))
+
+    def test_distribute_inwards(self):
+        self.assertEqual(Not(False).distribute_inwards(), True)
+        self.assertEqual(Not(a & b).distribute_inwards(), ~a | ~b)
+        self.assertEqual(Not(a | b).distribute_inwards(), ~a & ~b)
 
 
 class TestConjunctiveNormalForm(TestCase):

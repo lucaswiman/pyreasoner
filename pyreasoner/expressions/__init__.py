@@ -71,8 +71,10 @@ def _convert_to_conjunctive_normal_form(expr):
                 result = _convert_to_conjunctive_normal_form(
                     And(*(descendant | other_disjuncts for descendant in child.children)))
                 return result
-        else:
-            assert False, expr
+        else:  # pragma: no cover
+            # This branch would indicate a bug in recursive_collapse or
+            # is_disjunction_of_atoms.
+            assert False, 'Bug: Should be unreachable: %r' % expr
     elif isinstance(expr, And):
         return reduce(
             operator.and_,
@@ -203,10 +205,7 @@ class Or(BooleanOperation):
             return Or(*chain(self.children, [other]))
 
     def __ror__(self, other):
-        if isinstance(other, Or):
-            return Or(*chain(other.children, self.children))
-        else:
-            return Or(*chain([other], self.children))
+        return Or(*chain([other], self.children))
 
     def recursive_collapse(self):
         """
@@ -237,10 +236,7 @@ class And(BooleanOperation):
             return And(*chain(self.children, [other]))
 
     def __rand__(self, other):
-        if isinstance(other, And):
-            return And(*chain(other.children, self.children))
-        else:
-            return And(*chain([other], self.children))
+        return And(*chain([other], self.children))
 
 
 class Not(BooleanOperation):
