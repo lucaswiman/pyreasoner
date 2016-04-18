@@ -36,6 +36,13 @@ def assert_logically_equivalent(expr1, expr2):
         '%r is not logically equivalent to %r' % (expr1, expr2))
 
 
+class TestConstructVariables(TestCase):
+    def test(self):
+        self.assertEqual(variables('a b c'), variables('a, b, c'))
+        self.assertEqual(variables('a b c'), [a, b, c])
+        self.assertEqual(variables(['a', 'b', 'c']), [a, b, c])
+
+
 class TestExpressionBooleanOperations(TestCase):
     def test_operations(self):
         self.assertEqual(a & True, And(a, True))
@@ -69,6 +76,10 @@ class TestConjunctiveNormalForm(TestCase):
             assert_logically_equivalent(
                 convert_to_conjunctive_normal_form(expr),
                 solution)
+
+    def test_empty_expressions(self):
+        self.assertEqual(convert_to_conjunctive_normal_form(Or()), And(Or()))
+        self.assertEqual(convert_to_conjunctive_normal_form(And()), And())
 
 
 class TestGetFreeVariables(TestCase):
@@ -126,6 +137,9 @@ class TestReify(TestCase):
 
     def test_or(self):
         self.assertEqual((a | c).reify({c: a}), a | a)
+
+    def test_reify_including_truth_literal(self):
+        self.assertEqual((a | True).reify({a: False}), Or(False, True))
 
     def test_and(self):
         self.assertEqual((a & c).reify({c: a}), a & a)

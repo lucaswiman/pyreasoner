@@ -27,9 +27,9 @@ def reify_expr(expr, namespace):
 
 
 def variables(names):
-    if not isinstance(input, (list, tuple)):
-        names = re.split(r'[, ]', names)
-    return map(Var, names)
+    if not isinstance(names, (list, tuple)):
+        names = re.split(r'[, ]+', names)
+    return [Var(name) for name in names]
 
 
 def is_boolean_atom(obj):
