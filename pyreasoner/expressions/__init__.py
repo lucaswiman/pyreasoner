@@ -306,21 +306,17 @@ def solve_SAT(expr, num_solutions=None):
     Returns a iterator of {var: truth value} assignments which satisfy the given
     expression.
 
-    Expressions should not include a variable named ``__TRUE__`` or ``__FALSE__``,
-    since those are used in the internals of this function as stand-ins for
-    truth literals.
+    Expressions should not include a variable named ``__TRUE__``, since those
+    are used in the internals of this function as stand-ins for truth literals.
     """
     expr = convert_to_conjunctive_normal_form(expr)
 
-    # Hack to include truth literals (not supported by pycosat API.
-    # Trivial constraints are added to the list of constraints forcing these variables
-    # to be True/False in any solutions.
+    # Hack to include a True literal (not directly supported by pycosat API).
+    # We add a trivial constraint to the list of constraints, forcing this
+    # variables to be True in any solutions. Note that this is still conjunctive
+    # normal form, since T and F are literals.
     T = Var('__TRUE__')
-    F = Var('__FALSE__')
-
-    # This forces the variable T to be True, and F to be False. Note that this is still
-    # conjunctive normal form, since T and F are literals.
-    expr = expr & T & ~F
+    expr = expr & T
 
     vars = list(get_free_variables(expr))
 
@@ -359,9 +355,8 @@ def solve_SAT(expr, num_solutions=None):
             # to True, and negative corresponds to False.
             as_bool = var_assignment > 0
             var = vars[i]
-            if var in (T, F):
-                assert as_bool == (var == T), \
-                    'Bug: Solution has an invalid solution to the T/F literals.'
+            if var == T:
+                assert as_bool, 'Bug: Solution has an invalid solution to the T literal.'
             else:
                 namespace[var] = as_bool
         yield namespace
