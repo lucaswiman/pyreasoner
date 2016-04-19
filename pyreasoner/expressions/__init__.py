@@ -92,16 +92,15 @@ def convert_to_conjunctive_normal_form(expr):
 class ExpressionNode(with_metaclass(abc.ABCMeta)):
 
     @abc.abstractmethod
-    def eval(self, namespace):
+    def eval(self, namespace):  # pragma: no cover
         raise NotImplementedError
 
     @abc.abstractmethod
-    def reify(self, namespace):
+    def reify(self, namespace):  # pragma: no cover
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_free_variables(self):
-
+    def get_free_variables(self):  # pragma: no cover
         raise NotImplementedError
 
     def __or__(self, other):

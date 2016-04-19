@@ -56,13 +56,16 @@ class TestExpressionBooleanOperations(TestCase):
     def test_reverse_operations(self):
         self.assertEqual(a & True, And(a, True))
         self.assertEqual(True & a, And(True, a))
+        self.assertEqual(True & (a & b), And(True, a, b))
         self.assertEqual(a | True, Or(a, True))
         self.assertEqual(True | a, Or(True, a))
+        self.assertEqual(True | (a | b), Or(True, a, b))
 
     def test_distribute_inwards(self):
         self.assertEqual(Not(False).distribute_inwards(), True)
         self.assertEqual(Not(a & b).distribute_inwards(), ~a | ~b)
         self.assertEqual(Not(a | b).distribute_inwards(), ~a & ~b)
+        self.assertEqual(Not(~a).distribute_inwards(), a)
 
 
 class TestConjunctiveNormalForm(TestCase):
@@ -83,6 +86,16 @@ class TestConjunctiveNormalForm(TestCase):
             assert_logically_equivalent(
                 convert_to_conjunctive_normal_form(expr),
                 solution)
+
+    def test_is_conjunctive_normal_form(self):
+        self.assertTrue(is_conjunctive_normal_form(True))
+        self.assertTrue(is_conjunctive_normal_form(False))
+        self.assertTrue(is_conjunctive_normal_form(a))
+        self.assertTrue(is_conjunctive_normal_form(a | b))
+        self.assertTrue(is_conjunctive_normal_form((a | b) & c))
+        self.assertTrue(is_conjunctive_normal_form((a | b) & (c | d)))
+        self.assertFalse(is_conjunctive_normal_form(a | (b & c)))
+        self.assertFalse(is_conjunctive_normal_form(a | (True & c)))
 
     def test_empty_expressions(self):
         self.assertEqual(convert_to_conjunctive_normal_form(Or()), And(Or()))
@@ -137,6 +150,14 @@ class TestTruthTable(TestCase):
 
 
 class TestReify(TestCase):
+    def test_var(self):
+        self.assertEqual(a.reify({'a': 6}), 6)
+        self.assertEqual(a.reify({a: 6}), 6)
+        self.assertEqual(a.reify({'b': 6}), a)
+        self.assertEqual(a.reify({b: 6}), a)
+        self.assertEqual(a.reify({'a': b}), b)
+        self.assertEqual(a.reify({a: b}), b)
+
     def test_chained_evaluation(self):
         self.assertEqual(a.reify({a: b, b: c}), b)
         self.assertEqual(a.eval({a: b, b: 1}), 1)
@@ -154,6 +175,7 @@ class TestReify(TestCase):
     def test_negation(self):
         self.assertEqual((~a).reify({a: False}), Not(False))
         self.assertEqual((~a).reify({c: a}), ~a)
+        self.assertEqual((~a).eval({c: a}), ~a)
 
     def test_idempotency_with_empty_namespace(self):
         for expr in CNF_EXPRESSIONS:
