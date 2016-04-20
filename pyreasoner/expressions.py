@@ -12,7 +12,7 @@ import pycosat
 
 from six import with_metaclass
 
-from ..utils import is_valid_identifier_for_namedtuple
+from .utils import is_valid_identifier_for_namedtuple
 
 
 def eval_expr(expr, namespace):
