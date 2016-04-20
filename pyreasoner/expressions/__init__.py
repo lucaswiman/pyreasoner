@@ -4,7 +4,7 @@ import abc
 import itertools
 import operator
 import re
-from collections import namedtuple
+import typing  # noqa
 from functools import reduce
 from itertools import chain
 
@@ -102,9 +102,17 @@ class ExpressionNode(with_metaclass(abc.ABCMeta)):
     def reify(self, namespace):  # pragma: no cover
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def get_free_variables(self):  # pragma: no cover
+    @abc.abstractproperty
+    def free_variables(self):  # pragma: no cover
         raise NotImplementedError
+
+    @property
+    def assignment_class(self):
+        if not hasattr(self, '_assignment_class'):
+            self._assignment_class = typing.NamedTuple(
+                'Assignment', sorted((var.name, bool) for var in self.free_variables))
+
+        return self._assignment_class
 
     def __or__(self, other):
         return Or(self, other)
@@ -123,7 +131,6 @@ class ExpressionNode(with_metaclass(abc.ABCMeta)):
 
 
 class Var(ExpressionNode):
-    __slots__ = ('name', )
 
     def __init__(self, name=None):
         if name is None:
@@ -139,12 +146,14 @@ class Var(ExpressionNode):
         Note that this does not follow chained a->b->c namespace substitutions
         as ``eval`` does.
         """
-        if self in namespace:
-            ret = namespace[self]
-        elif self.name in namespace:
-            ret = namespace[self.name]
-        else:
-            ret = self
+        ret = self
+        if isinstance(namespace, dict):
+            if self in namespace:
+                ret = namespace[self]
+            elif self.name in namespace:
+                ret = namespace[self.name]
+        else:  # an Assignment namedtuple.
+            ret = getattr(namespace, self.name, self)
         return ret
 
     def eval(self, namespace):
@@ -154,7 +163,8 @@ class Var(ExpressionNode):
             return reified.eval(namespace)
         return reified
 
-    def get_free_variables(self):
+    @property
+    def free_variables(self):
         return {self}
 
     def __str__(self):
@@ -170,12 +180,12 @@ class Var(ExpressionNode):
 
 
 class BooleanOperation(ExpressionNode):
-    __slots__ = ('children', )
 
     def __init__(self, *children):
         self.children = children
 
-    def get_free_variables(self):
+    @property
+    def free_variables(self):
         # operator.or_ is the set union operation.
         return reduce(operator.or_, (get_free_variables(child) for child in self.children))
 
@@ -254,9 +264,6 @@ class Not(BooleanOperation):
         else:  # pragma: no cover
             raise TypeError(evaluated)
 
-    def get_free_variables(self):
-        return get_free_variables(self.children[0])
-
     def __str__(self):
         return '~%s' % self.children[0]
 
@@ -280,10 +287,20 @@ class Not(BooleanOperation):
 
 
 def get_free_variables(expr):
-    if hasattr(expr, 'get_free_variables'):
-        return expr.get_free_variables()
+    if hasattr(expr, 'free_variables'):
+        return expr.free_variables
     else:
         return set()
+
+
+EmptyAssignment = typing.NamedTuple('EmptyAssignment', [])
+
+
+def get_assignment_class(expr):
+    if isinstance(expr, ExpressionNode):
+        return expr.assignment_class
+    else:
+        return EmptyAssignment
 
 
 def get_truth_table(expr):
@@ -291,21 +308,20 @@ def get_truth_table(expr):
     Returns a ``{var_assignment: truth_value}`` dict representing the truth_table for the
     given expression.
 
-    ``var_assignment`` is a tuple, whose attributes are alphabetically ordered variables
+    ``var_assignment`` is a namedtuple, whose attributes are alphabetically ordered variables
     of all the free variables in ``expr``.
     """
-    variables = sorted(get_free_variables(expr), key=operator.attrgetter('name'))
-    Assignment = namedtuple('Assignment', [variable.name for variable in variables])
+    AssignmentClass = get_assignment_class(expr)
     bools = [True, False]
     assignments = itertools.starmap(
-        Assignment, itertools.product(*([bools] * len(variables))))
+        AssignmentClass, itertools.product(*([bools] * len(AssignmentClass._fields))))
     return {
-        assignment: expr.eval(assignment._asdict()) for assignment in assignments
+        assignment: eval_expr(expr, assignment._asdict()) for assignment in assignments
     }
 
 
 def is_logically_equivalent(expr1, expr2):
-    return get_free_variables(expr1) == get_free_variables(expr2)
+    return get_truth_table(expr1) == get_truth_table(expr2)
 
 
 def solve_SAT(expr, num_solutions=None):
@@ -317,6 +333,7 @@ def solve_SAT(expr, num_solutions=None):
     are used in the internals of this function as stand-ins for truth literals.
     """
     expr = convert_to_conjunctive_normal_form(expr)
+    Assignment = get_assignment_class(expr)
 
     # Hack to include a True literal (not directly supported by pycosat API).
     # We add a trivial constraint to the list of constraints, forcing this
@@ -325,8 +342,7 @@ def solve_SAT(expr, num_solutions=None):
     T = Var('TRUE_')
     expr = expr & T
 
-    vars = sorted(get_free_variables(expr), key=operator.attrgetter('name'))
-    Assignment = namedtuple('Assignment', [var.name for var in vars if var != T])
+    vars = list(get_free_variables(expr))
 
     # 1-index, since pycosat expects nonzero integers.
     var2pycosat_index = {v: i + 1 for i, v in enumerate(vars)}

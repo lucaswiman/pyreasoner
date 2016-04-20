@@ -140,6 +140,7 @@ class TestTruthTable(TestCase):
     def test_no_free_variables(self):
         self.assertEqual(get_truth_table(Or(True, False)), {(): True})
         self.assertEqual(get_truth_table(And(True, False)), {(): False})
+        self.assertEqual(get_truth_table(True), {(): True})
 
     def test_truth_table_and_reification(self):
         for expr in CNF_EXPRESSIONS:
@@ -148,7 +149,7 @@ class TestTruthTable(TestCase):
             self.assertEqual(2 ** len(vars), len(table))
             for assignment, value in table.items():
                 self.assertEqual(len(vars), len(assignment))
-                namespace = assignment._asdict()
+                namespace = assignment
                 self.assertEqual(expr.reify(namespace).eval({}), expr.eval(namespace))
                 self.assertEqual(expr.reify(namespace).eval({}), value)
 
@@ -232,17 +233,10 @@ class TestSAT(TestCase):
         )
 
         self.assertTrue(is_satisfiable(expr))
-        expected_solution = {
-            'x1': True,
-            'x3': False,
-            'x4': False,
-            'x5': True,
-        }
+        expected_solution = expr.assignment_class(x1=True, x3=False, x4=False, x5=True)
         self.assertTrue(expr.eval(expected_solution))
         all_solutions = list(solve_SAT(expr))
-        self.assertIn(
-            expected_solution,
-            [dict(solution._asdict().items()) for solution in all_solutions])
+        self.assertIn(expected_solution, all_solutions)
         self.assertEqual(len(all_solutions), 9)
         self.assertEqual(set(all_solutions), set(solve_SAT_truth_table(expr)))
 
