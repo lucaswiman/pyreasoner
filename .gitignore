@@ -19,7 +19,6 @@ nosetests*.xml
 .coverage
 coverage.xml
 coverage
-.coverage*
 
 test.db
 .venv
