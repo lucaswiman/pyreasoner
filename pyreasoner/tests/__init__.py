@@ -43,6 +43,11 @@ class TestConstructVariables(TestCase):
         self.assertEqual(variables('a b c'), [a, b, c])
         self.assertEqual(variables(['a', 'b', 'c']), [a, b, c])
         self.assertTrue(Var().name)
+        with self.assertRaises(ValueError):
+            Var('not$a$variable')
+
+        with self.assertRaises(ValueError):
+            Var('in')  # builtin
 
 
 class TestExpressionBooleanOperations(TestCase):

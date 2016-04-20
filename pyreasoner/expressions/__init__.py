@@ -11,6 +11,8 @@ import pycosat
 
 from six import with_metaclass
 
+from ..utils import is_valid_identifier
+
 
 def eval_expr(expr, namespace):
     if isinstance(expr, ExpressionNode):
@@ -125,6 +127,8 @@ class Var(ExpressionNode):
     def __init__(self, name=None):
         if name is None:
             name = 'x_%s' % id(self)
+        if not is_valid_identifier(name):
+            raise ValueError('%r is an invalid identifier' % name)
         self.name = name
 
     def reify(self, namespace):
