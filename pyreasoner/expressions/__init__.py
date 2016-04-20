@@ -4,6 +4,7 @@ import abc
 import itertools
 import operator
 import re
+from collections import namedtuple
 from functools import reduce
 from itertools import chain
 
@@ -11,7 +12,7 @@ import pycosat
 
 from six import with_metaclass
 
-from ..utils import is_valid_identifier
+from ..utils import is_valid_identifier_for_namedtuple
 
 
 def eval_expr(expr, namespace):
@@ -127,7 +128,7 @@ class Var(ExpressionNode):
     def __init__(self, name=None):
         if name is None:
             name = 'x_%s' % id(self)
-        if not is_valid_identifier(name):
+        if not is_valid_identifier_for_namedtuple(name):
             raise ValueError('%r is an invalid identifier' % name)
         self.name = name
 
@@ -294,10 +295,12 @@ def get_truth_table(expr):
     of all the free variables in ``expr``.
     """
     variables = sorted(get_free_variables(expr), key=operator.attrgetter('name'))
+    Assignment = namedtuple('Assignment', [variable.name for variable in variables])
     bools = [True, False]
+    assignments = itertools.starmap(
+        Assignment, itertools.product(*([bools] * len(variables))))
     return {
-        assignment: expr.eval({var: value for var, value in zip(variables, assignment)})
-        for assignment in itertools.product(*([bools] * len(variables)))
+        assignment: expr.eval(assignment._asdict()) for assignment in assignments
     }
 
 
@@ -310,7 +313,7 @@ def solve_SAT(expr, num_solutions=None):
     Returns a iterator of {var: truth value} assignments which satisfy the given
     expression.
 
-    Expressions should not include a variable named ``__TRUE__``, since those
+    Expressions should not include a variable named ``TRUE_``, since those
     are used in the internals of this function as stand-ins for truth literals.
     """
     expr = convert_to_conjunctive_normal_form(expr)
@@ -319,10 +322,11 @@ def solve_SAT(expr, num_solutions=None):
     # We add a trivial constraint to the list of constraints, forcing this
     # variables to be True in any solutions. Note that this is still conjunctive
     # normal form, since T and F are literals.
-    T = Var('__TRUE__')
+    T = Var('TRUE_')
     expr = expr & T
 
-    vars = list(get_free_variables(expr))
+    vars = sorted(get_free_variables(expr), key=operator.attrgetter('name'))
+    Assignment = namedtuple('Assignment', [var.name for var in vars if var != T])
 
     # 1-index, since pycosat expects nonzero integers.
     var2pycosat_index = {v: i + 1 for i, v in enumerate(vars)}
@@ -362,8 +366,8 @@ def solve_SAT(expr, num_solutions=None):
             if var == T:
                 assert as_bool, 'Bug: Solution has an invalid solution to the T literal.'
             else:
-                namespace[var] = as_bool
-        yield namespace
+                namespace[var.name] = as_bool
+        yield Assignment(**namespace)
 
 
 def is_satisfiable(expr):

@@ -1,4 +1,3 @@
-import operator
 from unittest import TestCase
 
 from nose.tools import assert_true
@@ -145,11 +144,11 @@ class TestTruthTable(TestCase):
     def test_truth_table_and_reification(self):
         for expr in CNF_EXPRESSIONS:
             table = get_truth_table(expr)
-            vars = sorted(get_free_variables(expr), key=operator.attrgetter('name'))
+            vars = get_free_variables(expr)
             self.assertEqual(2 ** len(vars), len(table))
             for assignment, value in table.items():
                 self.assertEqual(len(vars), len(assignment))
-                namespace = dict(zip(vars, assignment))
+                namespace = assignment._asdict()
                 self.assertEqual(expr.reify(namespace).eval({}), expr.eval(namespace))
                 self.assertEqual(expr.reify(namespace).eval({}), value)
 
@@ -198,6 +197,18 @@ class TestReify(TestCase):
             self.assertEqual(expr.reify(reverse_assignment).reify(assignment), expr)
 
 
+def solve_SAT_truth_table(expr):
+    """
+    Solve SAT by building a full truth table.
+
+    This is very inefficient for most expressions, though has the same worst
+    case runtime as solve_SAT.
+    """
+    for assignment, value in get_truth_table(expr).items():
+        if value:
+            yield assignment
+
+
 class TestSAT(TestCase):
     def test_pycosat_example(self):
         # Verify the example from the pycosat README works as expected:
@@ -222,19 +233,22 @@ class TestSAT(TestCase):
 
         self.assertTrue(is_satisfiable(expr))
         expected_solution = {
-            x1: True,
-            x3: False,
-            x4: False,
-            x5: True,
+            'x1': True,
+            'x3': False,
+            'x4': False,
+            'x5': True,
         }
         self.assertTrue(expr.eval(expected_solution))
         all_solutions = list(solve_SAT(expr))
-        self.assertIn(expected_solution, all_solutions)
+        self.assertIn(
+            expected_solution,
+            [dict(solution._asdict().items()) for solution in all_solutions])
         self.assertEqual(len(all_solutions), 9)
+        self.assertEqual(set(all_solutions), set(solve_SAT_truth_table(expr)))
 
     def test_expression_with_literal(self):
         self.assertTrue(is_satisfiable(True))
-        self.assertEqual(list(solve_SAT(True)), [{}])
+        self.assertEqual(list(solve_SAT(True)), [()])
         self.assertFalse(is_satisfiable(False))
         self.assertTrue(is_satisfiable(Or(True, False, a)))
         self.assertFalse(is_satisfiable(And(True, False, a)))
