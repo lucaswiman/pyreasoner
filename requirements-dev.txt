@@ -7,3 +7,4 @@ pycosat
 typing
 six
 ipython
+hypothesis<4.0
