@@ -5,14 +5,15 @@ from unittest import TestCase
 
 from pyreasoner.sets import Infinity
 from pyreasoner.sets import NegativeInfinity
+from pyreasoner.sets import OpenInterval
 
 
 class TestInfinity(TestCase):
     def test(self):
-        self.assertLess(5, Infinity)
-        self.assertGreater(Infinity, 5)
-        self.assertGreater(5, NegativeInfinity)
-        self.assertLess(NegativeInfinity, 5)
+        self.assertLess(0, Infinity)
+        self.assertGreater(Infinity, 0)
+        self.assertGreater(0, NegativeInfinity)
+        self.assertLess(NegativeInfinity, 0)
 
         self.assertFalse(Infinity > Infinity)
         self.assertFalse(Infinity < Infinity)
@@ -30,3 +31,16 @@ class TestInfinity(TestCase):
         self.assertGreater(Infinity, NegativeInfinity)
         self.assertEqual(-Infinity, NegativeInfinity)
         self.assertEqual(-NegativeInfinity, Infinity)
+
+
+class TestRanges(TestCase):
+    def test_contains(self):
+        self.assertIn(0, OpenInterval())
+        self.assertIn('asdf', OpenInterval('a', 'b'))
+        self.assertNotIn(NegativeInfinity, OpenInterval())
+        self.assertNotIn(Infinity, OpenInterval())
+        self.assertNotIn(0, OpenInterval(0, 1))
+        self.assertIn(0.5, OpenInterval(0, 1))
+
+    def test_constraints(self):
+        assert False
