@@ -18,6 +18,7 @@ boolean_atoms = st.sampled_from(
 def expressions_or(args):
     return Or(*args)
 
+
 def expressions_and(args):
     return And(*args)
 
@@ -32,4 +33,4 @@ def combine_expressions(children):
 boolean_expressions = st.recursive(
     boolean_atoms,
     combine_expressions,
-    max_leaves=100)
+    max_leaves=25)
