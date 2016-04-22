@@ -22,3 +22,5 @@ coverage
 
 test.db
 .venv
+.hypothesis/eval_source
+.hypothesis/unicodedata

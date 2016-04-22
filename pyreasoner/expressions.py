@@ -237,6 +237,8 @@ class Or(BooleanOperation):
         """
         children = []
         for child in self.children:
+            if isinstance(child, Not):
+                child = child.distribute_inwards()
             if isinstance(child, Or):
                 children.extend(child.recursive_collapse().children)
             else:
@@ -280,6 +282,8 @@ class Not(BooleanOperation):
             raise TypeError(evaluated)
 
     def __str__(self):
+        if isinstance(self.children[0], bool):
+            return 'Not(%s)' % self.children[0]
         return '~%s' % self.children[0]
 
     __repr__ = __str__
@@ -366,7 +370,7 @@ def solve_SAT(expr, num_solutions=None):
         # pycosat accepts input as a list of CNF subclauses (disjunctions of variables
         # or negated variables).
         if isinstance(literal, Not):
-            return -var2pycosat_index[literal.children[0]]
+            return -get_pycosat_index(literal.children[0])
         elif isinstance(literal, Var):
             return var2pycosat_index[literal]
         elif isinstance(literal, ExpressionNode):  # pragma: no cover

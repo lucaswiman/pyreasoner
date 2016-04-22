@@ -1,8 +1,11 @@
 from unittest import TestCase
 
+import hypothesis
+
 from nose.tools import assert_true
 
-from ..expressions import And
+from .strategies import boolean_expressions
+from ..expressions import And, eval_expr
 from ..expressions import Not
 from ..expressions import Or
 from ..expressions import Var
@@ -12,6 +15,7 @@ from ..expressions import get_truth_table
 from ..expressions import is_conjunctive_normal_form
 from ..expressions import is_logically_equivalent
 from ..expressions import is_satisfiable
+from ..expressions import reify_expr
 from ..expressions import solve_SAT
 from ..expressions import variables
 
@@ -28,6 +32,16 @@ NON_CNF_EXPRESSIONS_WITH_SOLUTIONS = (
     ((a & b) | c, (a | c) & (b | c)),
     (a & ((b | (d & e))), a & (b | d) & (b | e)),
 )
+
+
+def with_examples(examples):
+
+    def add_examples(func):
+        for example in examples:
+            func = hypothesis.example(example)(func)
+        return func
+
+    return add_examples
 
 
 def assert_logically_equivalent(expr1, expr2):
@@ -71,6 +85,12 @@ class TestExpressionBooleanOperations(TestCase):
         self.assertEqual(Not(a | b).distribute_inwards(), ~a & ~b)
         self.assertEqual(Not(~a).distribute_inwards(), a)
 
+    @hypothesis.given(boolean_expressions)
+    @hypothesis.settings(max_examples=1000)
+    def test_distribute_inwards_preserves_logical_equivalence(self, expr):
+        negated = Not(expr)
+        assert_logically_equivalent(negated, negated.distribute_inwards())
+
 
 class TestConjunctiveNormalForm(TestCase):
     def test_cnf_expressions(self):
@@ -100,6 +120,13 @@ class TestConjunctiveNormalForm(TestCase):
         self.assertTrue(is_conjunctive_normal_form((a | b) & (c | d)))
         self.assertFalse(is_conjunctive_normal_form(a | (b & c)))
         self.assertFalse(is_conjunctive_normal_form(a | (True & c)))
+
+    @hypothesis.given(boolean_expressions)
+    @hypothesis.settings(max_examples=1000)
+    @hypothesis.example(a | ~~a)
+    def test_conversion_is_always_cnf(self, expr):
+        self.assertTrue(
+            is_conjunctive_normal_form(convert_to_conjunctive_normal_form(expr)))
 
     def test_empty_expressions(self):
         self.assertEqual(convert_to_conjunctive_normal_form(Or()), And(Or()))
@@ -137,21 +164,47 @@ class TestTruthTable(TestCase):
     def test_negation(self):
         self.assertEqual(get_truth_table(~a), {(True, ): False, (False, ): True})
 
+    @hypothesis.given(boolean_expressions)
+    @hypothesis.settings(max_examples=1000)
+    def test_truth_table_invariants(self, expr):
+        table = get_truth_table(expr)
+        negated_table = get_truth_table(Not(expr))
+        or_table = get_truth_table(expr | expr)
+        and_table = get_truth_table(expr & expr)
+        contradiction_table = get_truth_table(expr & Not(expr))
+        tautology_table = get_truth_table(expr | Not(expr))
+        self.assertEqual(table, and_table)
+        self.assertEqual(table, or_table)
+        self.assertEqual(
+            negated_table,
+            {assignment: not value for assignment, value in table.items()})
+        self.assertEqual(
+            contradiction_table,
+            {assignment: False for assignment in table.keys()})
+        self.assertEqual(
+            tautology_table,
+            {assignment: True for assignment in table.keys()})
+
     def test_no_free_variables(self):
         self.assertEqual(get_truth_table(Or(True, False)), {(): True})
         self.assertEqual(get_truth_table(And(True, False)), {(): False})
         self.assertEqual(get_truth_table(True), {(): True})
 
-    def test_truth_table_and_reification(self):
-        for expr in CNF_EXPRESSIONS:
-            table = get_truth_table(expr)
-            vars = get_free_variables(expr)
-            self.assertEqual(2 ** len(vars), len(table))
-            for assignment, value in table.items():
-                self.assertEqual(len(vars), len(assignment))
-                namespace = assignment
-                self.assertEqual(expr.reify(namespace).eval(), expr.eval(namespace))
-                self.assertEqual(expr.reify(namespace).eval(), value)
+    @hypothesis.given(boolean_expressions)
+    @hypothesis.settings(max_examples=1000)
+    @with_examples(CNF_EXPRESSIONS)
+    def test_truth_table_and_reification(self, expr):
+        if isinstance(expr, bool):
+            expr = Or(expr)
+        table = get_truth_table(expr)
+        vars = get_free_variables(expr)
+        self.assertEqual(2 ** len(vars), len(table))
+        for assignment, value in table.items():
+            self.assertEqual(len(vars), len(assignment))
+            namespace = assignment
+            self.assertEqual(eval_expr(expr.reify(namespace), {}),
+                             expr.eval(namespace))
+            self.assertEqual(eval_expr(expr.reify(namespace), {}), value)
 
 
 class TestReify(TestCase):
@@ -182,20 +235,28 @@ class TestReify(TestCase):
         self.assertEqual((~a).reify(c=a), ~a)
         self.assertEqual((~a).eval(c=a), ~a)
 
-    def test_idempotency_with_empty_namespace(self):
-        for expr in CNF_EXPRESSIONS:
-            self.assertEqual(expr.reify(), expr)
+    @hypothesis.given(boolean_expressions)
+    @hypothesis.settings(max_examples=1000)
+    @with_examples(CNF_EXPRESSIONS)
+    def test_idempotency_with_empty_namespace(self, expr):
+        self.assertEqual(reify_expr(expr, {}), expr)
 
-    def test_permutation_of_variables(self):
-        for expr in CNF_EXPRESSIONS:
-            vars = list(get_free_variables(expr))
-            perm = vars[1:] + [vars[0]]
-            self.assertNotEqual(vars, perm)
-            assignment = dict(zip(vars, perm))
-            reverse_assignment = dict(zip(perm, vars))
-            self.assertNotEqual(expr.reify(assignment), expr)
-            self.assertEqual(expr.reify(assignment).reify(reverse_assignment), expr)
-            self.assertEqual(expr.reify(reverse_assignment).reify(assignment), expr)
+    def assert_permutation_of_variables(self, expr):
+        vars = list(get_free_variables(expr))
+        hypothesis.assume(len(vars) > 1)
+        perm = vars[1:] + [vars[0]]
+        assignment = dict(zip(vars, perm))
+        reverse_assignment = dict(zip(perm, vars))
+        self.assertNotEqual(vars, perm)
+        self.assertNotEqual(expr.reify(assignment), expr)
+        self.assertEqual(expr.reify(assignment).reify(reverse_assignment), expr)
+        self.assertEqual(expr.reify(reverse_assignment).reify(assignment), expr)
+
+    @hypothesis.given(boolean_expressions)
+    @hypothesis.settings(max_examples=1000)
+    @with_examples(CNF_EXPRESSIONS)
+    def test_permutation_of_variables(self, expr):
+        self.assert_permutation_of_variables(expr)
 
 
 def solve_SAT_truth_table(expr):
@@ -246,3 +307,10 @@ class TestSAT(TestCase):
         self.assertFalse(is_satisfiable(False))
         self.assertTrue(is_satisfiable(Or(True, False, a)))
         self.assertFalse(is_satisfiable(And(True, False, a)))
+
+    @hypothesis.given(boolean_expressions)
+    @hypothesis.settings(max_examples=1000, verbosity=hypothesis.Verbosity.verbose)
+    def test_sat_matches_truth_table(self, expr):
+        truth_table_solutions = set(solve_SAT_truth_table(expr))
+        pycosat_solutions = set(solve_SAT(expr))
+        self.assertEqual(truth_table_solutions, pycosat_solutions)
