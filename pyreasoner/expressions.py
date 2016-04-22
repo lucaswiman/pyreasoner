@@ -95,11 +95,11 @@ def convert_to_conjunctive_normal_form(expr):
 class ExpressionNode(with_metaclass(abc.ABCMeta)):
 
     @abc.abstractmethod
-    def eval(self, namespace):  # pragma: no cover
+    def eval(self, namespace=None, **kwargs):  # pragma: no cover
         raise NotImplementedError
 
     @abc.abstractmethod
-    def reify(self, namespace):  # pragma: no cover
+    def reify(self, namespace=None, **kwargs):  # pragma: no cover
         raise NotImplementedError
 
     @abc.abstractproperty
@@ -139,7 +139,7 @@ class Var(ExpressionNode):
             raise ValueError('%r is an invalid identifier' % name)
         self.name = name
 
-    def reify(self, namespace):
+    def reify(self, namespace=None, **kwargs):
         """
         Replace with the assignment in ``namespace``.
 
@@ -147,6 +147,9 @@ class Var(ExpressionNode):
         as ``eval`` does.
         """
         ret = self
+        if namespace is not None and kwargs:
+            raise ValueError('Cannot specify both namespace and kwargs')
+        namespace = namespace or kwargs
         if isinstance(namespace, dict):
             if self in namespace:
                 ret = namespace[self]
@@ -156,7 +159,10 @@ class Var(ExpressionNode):
             ret = getattr(namespace, self.name, self)
         return ret
 
-    def eval(self, namespace):
+    def eval(self, namespace=None, **kwargs):
+        if namespace is not None and kwargs:
+            raise ValueError('Cannot specify both namespace and kwargs')
+        namespace = namespace or kwargs
         reified = self.reify(namespace)
         if reified != self and hasattr(reified, 'eval'):
             # Handle the Var('x').eval({'x': Var('y'), 'y': 10}) case.
@@ -189,11 +195,17 @@ class BooleanOperation(ExpressionNode):
         # operator.or_ is the set union operation.
         return reduce(operator.or_, (get_free_variables(child) for child in self.children))
 
-    def reify(self, namespace):
+    def reify(self, namespace=None, **kwargs):
+        if namespace is not None and kwargs:
+            raise ValueError('Cannot specify both namespace and kwargs')
+        namespace = namespace or kwargs
         reified = [reify_expr(child, namespace) for child in self.children]
         return type(self)(*reified)
 
-    def eval(self, namespace):
+    def eval(self, namespace=None, **kwargs):
+        if namespace is not None and kwargs:
+            raise ValueError('Cannot specify both namespace and kwargs')
+        namespace = namespace or kwargs
         evaluated = [eval_expr(child, namespace) for child in self.children]
         return reduce(self.operator, evaluated, self.default_reduce_value)
 
@@ -255,7 +267,10 @@ class Not(BooleanOperation):
     def __init__(self, child):
         self.children = (child, )
 
-    def eval(self, namespace):
+    def eval(self, namespace=None, **kwargs):
+        if namespace is not None and kwargs:
+            raise ValueError('Cannot specify both namespace and kwargs')
+        namespace = namespace or kwargs
         evaluated = eval_expr(self.children[0], namespace)
         if isinstance(evaluated, ExpressionNode):
             return ~evaluated

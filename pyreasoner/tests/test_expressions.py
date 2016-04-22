@@ -150,41 +150,41 @@ class TestTruthTable(TestCase):
             for assignment, value in table.items():
                 self.assertEqual(len(vars), len(assignment))
                 namespace = assignment
-                self.assertEqual(expr.reify(namespace).eval({}), expr.eval(namespace))
-                self.assertEqual(expr.reify(namespace).eval({}), value)
+                self.assertEqual(expr.reify(namespace).eval(), expr.eval(namespace))
+                self.assertEqual(expr.reify(namespace).eval(), value)
 
 
 class TestReify(TestCase):
     def test_var(self):
-        self.assertEqual(a.reify({'a': 6}), 6)
+        self.assertEqual(a.reify(a=6), 6)
         self.assertEqual(a.reify({a: 6}), 6)
-        self.assertEqual(a.reify({'b': 6}), a)
-        self.assertEqual(a.reify({b: 6}), a)
-        self.assertEqual(a.reify({'a': b}), b)
+        self.assertEqual(a.reify(b=6), a)
+        self.assertEqual(a.reify(b=6), a)
+        self.assertEqual(a.reify(a=b), b)
         self.assertEqual(a.reify({a: b}), b)
 
     def test_chained_evaluation(self):
-        self.assertEqual(a.reify({a: b, b: c}), b)
-        self.assertEqual(a.eval({a: b, b: 1}), 1)
-        self.assertEqual(a.reify({b: c}), a)
+        self.assertEqual(a.reify(a=b, b=c), b)
+        self.assertEqual(a.eval(a=b, b=1), 1)
+        self.assertEqual(a.reify(b=c), a)
 
     def test_or(self):
-        self.assertEqual((a | c).reify({c: a}), a | a)
+        self.assertEqual((a | c).reify(c=a), a | a)
 
     def test_reify_including_truth_literal(self):
-        self.assertEqual((a | True).reify({a: False}), Or(False, True))
+        self.assertEqual((a | True).reify(a=False), Or(False, True))
 
     def test_and(self):
         self.assertEqual((a & c).reify({c: a}), a & a)
 
     def test_negation(self):
-        self.assertEqual((~a).reify({a: False}), Not(False))
-        self.assertEqual((~a).reify({c: a}), ~a)
-        self.assertEqual((~a).eval({c: a}), ~a)
+        self.assertEqual((~a).reify(a=False), Not(False))
+        self.assertEqual((~a).reify(c=a), ~a)
+        self.assertEqual((~a).eval(c=a), ~a)
 
     def test_idempotency_with_empty_namespace(self):
         for expr in CNF_EXPRESSIONS:
-            self.assertEqual(expr.reify({}), expr)
+            self.assertEqual(expr.reify(), expr)
 
     def test_permutation_of_variables(self):
         for expr in CNF_EXPRESSIONS:
