@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import abc
 import operator
 from functools import reduce
+
+from six import with_metaclass  # noqa
+
+from pyreasoner.expressions import And
+from pyreasoner.expressions import Eq
+from pyreasoner.expressions import Or
+from pyreasoner.expressions import Var
+from pyreasoner.expressions import eval_expr
 
 
 class _Infinity(object):
@@ -53,23 +62,123 @@ Infinity = _Infinity()
 NegativeInfinity = _NegativeInfinity()
 
 
-class OpenInterval(object):
+class BaseSet(with_metaclass(abc.ABCMeta)):
+    def __contains__(self, item):
+        return eval_expr(self.get_constraints(Var('x')), {'x': item})
+
+    @abc.abstractmethod
+    def get_constraints(self, variable):
+        raise NotImplementedError
+
+    def __and__(self, other):
+        if isinstance(other, (DiscreteSet, Intersection)):
+            # These classes have more efficient means of constructing intersections.
+            return other & self
+        return Intersection(self, other)
+
+    def __rand__(self, other):
+        return Intersection(other, self)
+
+    def __or__(self, other):
+        if isinstance(other, Union):
+            return other | self
+        return Union(self, other)
+
+    def __ror__(self, other):
+        return Union(other, self)
+
+
+class DiscreteSet(BaseSet):
+    def __init__(self, elements):
+        self.elements = elements if isinstance(elements, frozenset) else frozenset(elements)
+
+    def __repr__(self):
+        return repr(self.elements)
+
+    def __and__(self, other):
+        return DiscreteSet(x for x in other.elements if x in other)
+
+    def __or__(self, other):
+        if isinstance(other, DiscreteSet):
+            return DiscreteSet(self.elements | other.elements)
+        return super(DiscreteSet, self).__or__(other)
+
+    def __contains__(self, item):
+        return item in self.elements
+
+    def get_constraints(self, variable):
+        return reduce(
+            operator.or_,
+            (Eq(variable, elem) for elem in self.elements),
+            Or()
+        )
+
+
+class Union(BaseSet):
+    def __init__(self, *children):
+        self.children = children
+
+    def __or__(self, other):
+        if isinstance(other, Union):
+            return Union(*(self.children + other.children))
+        else:
+            return Union(*(self.children + [other]))
+
+    def __repr__(self):
+        return '(%s)' % '∪'.join(map(repr, self.children))
+
+    def __contains__(self, item):
+        return any(item in child for child in self.children)
+
+    def get_constraints(self, variable):
+        return reduce(
+            operator.or_,
+            (child.get_constraints(variable) for child in self.children),
+            Or()
+        )
+
+
+class Intersection(BaseSet):
+    def __init__(self, *children):
+        self.children = children
+
+    def __and__(self, other):
+        if isinstance(other, Intersection):
+            return Intersection(*(self.children + other.children))
+        else:
+            return Intersection(*(self.children + [other]))
+
+    def __repr__(self):
+        return '(%s)' % '∩'.join(map(repr, self.children))
+
+    def __contains__(self, item):
+        return all(item in child for child in self.children)
+
+    def get_constraints(self, variable):
+        return reduce(
+            operator.and_,
+            (child.get_constraints(variable) for child in self.children),
+            And()
+        )
+
+
+class OpenInterval(BaseSet):
     def __init__(self, left=NegativeInfinity, right=Infinity):
         self.left = left
         self.right = right
 
-    def __contains__(self, item):
-        return (self.left < item) & (item < self.right)
+    def __and__(self, other):
+        if isinstance(other, OpenInterval):
+            left = max(self.left, other.left)
+            right = min(self.right, other.right)
+            if left >= right:
+                # In this case, the intersection is empty.
+                return DiscreteSet([])
+            return OpenInterval(left, right)
+        return super(OpenInterval, self).__and__(other)
 
     def __repr__(self):
         return '(%r, %r)' % (self.left, self.right)
 
     def get_constraints(self, variable):
-        constraints = []
-        if self.left != NegativeInfinity:
-            constraints.append(variable < self.right)
-        if self.right != Infinity:
-            return constraints.append(variable > self.left)
-        if constraints:
-            return reduce(operator.and_, constraints)
-        return True  # Trivial constraint. Everything is contained in this interval.
+        return (variable > self.left) & (variable < self.right)

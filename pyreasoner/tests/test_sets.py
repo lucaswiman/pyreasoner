@@ -3,9 +3,12 @@ from __future__ import unicode_literals
 
 from unittest import TestCase
 
+from pyreasoner.expressions import variables
 from pyreasoner.sets import Infinity
 from pyreasoner.sets import NegativeInfinity
 from pyreasoner.sets import OpenInterval
+
+a, b, c = variables('a b c')
 
 
 class TestInfinity(TestCase):
@@ -43,4 +46,19 @@ class TestRanges(TestCase):
         self.assertIn(0.5, OpenInterval(0, 1))
 
     def test_constraints(self):
+        self.assertEqual(
+            OpenInterval().get_constraints(a),
+            (a > NegativeInfinity) & (a < Infinity)
+        )
+        self.assertEqual(
+            OpenInterval('a', 'b').get_constraints(a),
+            (a > 'a') & (a < 'b')
+        )
+
+
+class TestSetOperations(TestCase):
+    def test_intersections(self):
+        assert False
+
+    def test_unions(self):
         assert False
