@@ -82,6 +82,8 @@ class BaseSet(with_metaclass(abc.ABCMeta)):
     def __or__(self, other):
         if isinstance(other, Union):
             return other | self
+        elif self == other:
+            return self
         return Union(self, other)
 
     def __ror__(self, other):
@@ -92,15 +94,23 @@ class DiscreteSet(BaseSet):
     def __init__(self, elements):
         self.elements = elements if isinstance(elements, frozenset) else frozenset(elements)
 
+    def __eq__(self, other):
+        return isinstance(other, DiscreteSet) and self.elements == other.elements
+
     def __repr__(self):
         return repr(self.elements)
 
     def __and__(self, other):
-        return DiscreteSet(x for x in other.elements if x in other)
+        return DiscreteSet(x for x in self.elements if x in other)
 
     def __or__(self, other):
         if isinstance(other, DiscreteSet):
             return DiscreteSet(self.elements | other.elements)
+        intersection = self & other
+        if self == intersection:
+            return other
+        elif other == intersection:
+            return self
         return super(DiscreteSet, self).__or__(other)
 
     def __contains__(self, item):
@@ -117,6 +127,9 @@ class DiscreteSet(BaseSet):
 class Union(BaseSet):
     def __init__(self, *children):
         self.children = children
+
+    def __eq__(self, other):
+        return isinstance(other, Union) and self.children == other.children
 
     def __or__(self, other):
         if isinstance(other, Union):
@@ -142,6 +155,9 @@ class Intersection(BaseSet):
     def __init__(self, *children):
         self.children = children
 
+    def __eq__(self, other):
+        return isinstance(other, Intersection) and self.children == other.children
+
     def __and__(self, other):
         if isinstance(other, Intersection):
             return Intersection(*(self.children + other.children))
@@ -166,6 +182,24 @@ class OpenInterval(BaseSet):
     def __init__(self, left=NegativeInfinity, right=Infinity):
         self.left = left
         self.right = right
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, OpenInterval) and
+            self.left == other.left and
+            self.right == other.right)
+
+    def __or__(self, other):
+        if isinstance(other, OpenInterval):
+            intersection = self & other
+            if intersection == self:
+                return other
+            elif intersection == other:
+                return self
+        elif isinstance(other, DiscreteSet):
+            if other & self == other:
+                return self
+        return super(OpenInterval, self).__or__(other)
 
     def __and__(self, other):
         if isinstance(other, OpenInterval):

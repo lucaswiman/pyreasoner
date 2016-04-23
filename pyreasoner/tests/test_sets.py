@@ -4,9 +4,11 @@ from __future__ import unicode_literals
 from unittest import TestCase
 
 from pyreasoner.expressions import variables
+from pyreasoner.sets import DiscreteSet
 from pyreasoner.sets import Infinity
 from pyreasoner.sets import NegativeInfinity
 from pyreasoner.sets import OpenInterval
+from pyreasoner.sets import Union
 
 a, b, c = variables('a b c')
 
@@ -58,7 +60,31 @@ class TestRanges(TestCase):
 
 class TestSetOperations(TestCase):
     def test_intersections(self):
-        assert False
+        self.assertEqual(OpenInterval(0, 2) & OpenInterval(0, 2),
+                         OpenInterval(0, 2))
+        self.assertEqual(OpenInterval(0, 2) & OpenInterval(0, 1),
+                         OpenInterval(0, 1))
+        self.assertEqual(OpenInterval(0, 2) & OpenInterval(2, 3),
+                         DiscreteSet([]))
+        self.assertEqual(OpenInterval(0, 2) & DiscreteSet([1]),
+                         DiscreteSet([1]))
+        self.assertEqual(DiscreteSet([1]) & OpenInterval(0, 2),
+                         DiscreteSet([1]))
+        self.assertEqual(DiscreteSet([1]) & DiscreteSet([2]),
+                         DiscreteSet([]))
 
     def test_unions(self):
-        assert False
+        self.assertEqual(OpenInterval(0, 2) | OpenInterval(0, 2),
+                         OpenInterval(0, 2))
+        self.assertEqual(OpenInterval(0, 2) | OpenInterval(0, 1),
+                         OpenInterval(0, 2))
+        self.assertEqual(OpenInterval(0, 2) | OpenInterval(0, 3),
+                         OpenInterval(0, 3))
+        self.assertEqual(OpenInterval(0, 2) | OpenInterval(2, 3),
+                         Union(OpenInterval(0, 2), OpenInterval(2, 3)))
+        self.assertEqual(OpenInterval(0, 2) | DiscreteSet([1]),
+                         OpenInterval(0, 2))
+        self.assertEqual(DiscreteSet([1]) | OpenInterval(0, 2),
+                         OpenInterval(0, 2))
+        self.assertEqual(DiscreteSet([1]) | DiscreteSet([2]),
+                         DiscreteSet([1, 2]))
