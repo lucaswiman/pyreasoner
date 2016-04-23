@@ -59,6 +59,9 @@ def _convert_to_conjunctive_normal_form(expr):
     """
     Dumb conjunctive normal form algorithm based off this algorithm:
     https://april.eecs.umich.edu/courses/eecs492_w10/wiki/images/6/6b/CNF_conversion.pdf
+
+    TODO: Include some of the optimizations in http://cs.jhu.edu/~jason/tutorials/convert-to-CNF
+    (at least for SAT solving).
     """
     if is_disjunction_of_atoms(expr):
         return expr
