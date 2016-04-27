@@ -73,6 +73,11 @@ class TestSetOperations(TestCase):
         self.assertEqual(DiscreteSet([1]) & DiscreteSet([2]),
                          DiscreteSet([]))
 
+        # TODO: Should be empty set.
+        self.assertEqual(
+            (OpenInterval(0, 2) | DiscreteSet([2])) & (OpenInterval(3, 4) | DiscreteSet([4])),
+            (OpenInterval(0, 2) | DiscreteSet([2])) & (OpenInterval(3, 4) | DiscreteSet([4])))
+
     def test_unions(self):
         self.assertEqual(OpenInterval(0, 2) | OpenInterval(0, 2),
                          OpenInterval(0, 2))
