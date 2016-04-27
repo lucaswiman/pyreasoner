@@ -124,6 +124,7 @@ class TestConjunctiveNormalForm(TestCase):
     @hypothesis.given(boolean_expressions)
     @hypothesis.settings(max_examples=1000)
     @hypothesis.example(a | ~~a)
+    @hypothesis.example(~~~~a | a)
     def test_conversion_is_always_cnf(self, expr):
         self.assertTrue(
             is_conjunctive_normal_form(convert_to_conjunctive_normal_form(expr)))

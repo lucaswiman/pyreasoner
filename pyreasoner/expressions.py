@@ -296,8 +296,11 @@ class Not(BooleanOperation):
         if isinstance(child, bool):
             return not child
         elif isinstance(child, Not):
-            # Simplify double negation.
-            return child.children[0]
+            # Recursively simplify double negation.
+            ret = child.children[0]
+            if isinstance(ret, Not):
+                ret = ret.distribute_inwards()
+            return ret
         elif isinstance(child, Or):
             # Instance of de Morgan's Law: ~(x | y) === (~x & ~y)
             return And(*(Not(descendant).distribute_inwards() for descendant in child.children))
