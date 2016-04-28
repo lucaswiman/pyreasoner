@@ -77,10 +77,9 @@ def _convert_to_conjunctive_normal_form(expr):
                 result = _convert_to_conjunctive_normal_form(
                     And(*(descendant | other_disjuncts for descendant in child.children)))
                 return result
-        else:  # pragma: no cover
-            # This branch would indicate a bug in recursive_collapse or
-            # is_disjunction_of_atoms.
-            assert False, 'Bug: Should be unreachable: %r' % expr
+
+        # This would indicate a bug in recursive_collapse or is_disjunction_of_atoms.
+        assert False, 'Bug: Should be unreachable: %r' % expr
     elif isinstance(expr, And):
         return reduce(
             operator.and_,
