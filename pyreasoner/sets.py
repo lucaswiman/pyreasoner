@@ -76,18 +76,8 @@ class BaseSet(with_metaclass(abc.ABCMeta)):
             return other & self
         return Intersection(self, other)
 
-    def __rand__(self, other):
-        return Intersection(other, self)
-
     def __or__(self, other):
-        if isinstance(other, Union):
-            return other | self
-        elif self == other:
-            return self
         return Union(self, other)
-
-    def __ror__(self, other):
-        return Union(other, self)
 
 
 class DiscreteSet(BaseSet):
@@ -109,18 +99,17 @@ class DiscreteSet(BaseSet):
         intersection = self & other
         if self == intersection:
             return other
-        elif other == intersection:
-            return self
         return super(DiscreteSet, self).__or__(other)
 
     def __contains__(self, item):
         return item in self.elements
 
     def get_constraints(self, variable):
+        if not self.elements:
+            return False
         return reduce(
             operator.or_,
             (Eq(variable, elem) for elem in self.elements),
-            Or()
         )
 
 
@@ -135,7 +124,7 @@ class Union(BaseSet):
         if isinstance(other, Union):
             return Union(*(self.children + other.children))
         else:
-            return Union(*(self.children + [other]))
+            return Union(*(self.children + (other, )))
 
     def __repr__(self):
         return '(%s)' % '∪'.join(map(repr, self.children))
@@ -162,7 +151,7 @@ class Intersection(BaseSet):
         if isinstance(other, Intersection):
             return Intersection(*(self.children + other.children))
         else:
-            return Intersection(*(self.children + [other]))
+            return Intersection(*(self.children + (other, )))
 
     def __repr__(self):
         return '(%s)' % '∩'.join(map(repr, self.children))
