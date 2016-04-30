@@ -105,11 +105,10 @@ class DiscreteSet(BaseSet):
         return item in self.elements
 
     def get_constraints(self, variable):
-        if not self.elements:
-            return False
         return reduce(
             operator.or_,
             (Eq(variable, elem) for elem in self.elements),
+            Or()
         )
 
 
@@ -204,4 +203,9 @@ class OpenInterval(BaseSet):
         return '(%r, %r)' % (self.left, self.right)
 
     def get_constraints(self, variable):
-        return (variable > self.left) & (variable < self.right)
+        constraints = []
+        if self.left != NegativeInfinity:
+            constraints.append(variable > self.left)
+        if self.right != Infinity:
+            constraints.append(variable < self.right)
+        return reduce(operator.and_, constraints, And())

@@ -3,7 +3,9 @@ from __future__ import unicode_literals
 
 from unittest import TestCase
 
+from pyreasoner.expressions import And
 from pyreasoner.expressions import Eq
+from pyreasoner.expressions import Or
 from pyreasoner.expressions import variables
 from pyreasoner.sets import DiscreteSet
 from pyreasoner.sets import Infinity
@@ -44,31 +46,30 @@ class TestLogic(TestCase):
     def test_contains(self):
         self.assertIn(0, OpenInterval())
         self.assertIn('asdf', OpenInterval('a', 'b'))
-        self.assertNotIn(NegativeInfinity, OpenInterval())
-        self.assertNotIn(Infinity, OpenInterval())
         self.assertNotIn(0, INT_0_1)
         self.assertIn(0.5, INT_0_1)
         self.assertIn(0.5, Intersection(INT_0_1, INT_0_2))
+        self.assertNotIn('asdf', DiscreteSet([]))
 
     def test_constraints(self):
         self.assertEqual(
             OpenInterval().get_constraints(a),
-            (a > NegativeInfinity) & (a < Infinity))
+            And())
         self.assertEqual(
             OpenInterval('a', 'b').get_constraints(a),
             (a > 'a') & (a < 'b'))
         self.assertEqual(
             DiscreteSet(['a']).get_constraints(a),
-            Eq(a, 'a'))
+            Or(Eq(a, 'a')))
         self.assertEqual(
             DiscreteSet([]).get_constraints(a),
-            False)
+            Or())
         self.assertEqual(
             (DiscreteSet([1]) | INT_3_4).get_constraints(a),
             Eq(a, 1) | ((a > 3) & (a < 4)))
         self.assertEqual(
             Intersection(DiscreteSet([1]), DiscreteSet([1, 2])).get_constraints(a),
-            Eq(a, 1) & (Eq(a, 1) | Eq(a, 2)))
+            Or(Eq(a, 1)) & (Eq(a, 1) | Eq(a, 2)))
 
 INT_0_2 = OpenInterval(0, 2)
 INT_0_1 = OpenInterval(0, 1)
