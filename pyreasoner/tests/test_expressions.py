@@ -322,13 +322,13 @@ class TestSAT(TestCase):
 
 class TestRelationalExpressions(TestCase):
     def test_equality(self):
-        self.assertFalse(Eq(5, 6).eval({}))
-        self.assertEqual(Eq(a, 5).reify({'a': 5}), Eq(5, 5))
-        self.assertTrue(Eq(5, 5).eval({}))
+        self.assertFalse(Eq(5, 6).eval())
+        self.assertEqual(Eq(a, 5).reify(a=5), Eq(5, 5))
+        self.assertTrue(Eq(5, 5).eval())
 
     def test_less_than(self):
-        self.assertTrue(LessThan(5, 6).eval({}))
-        self.assertTrue((a < 5).eval({'a': 4}))
-        self.assertFalse((a < 5).eval({'a': 6}))
+        self.assertTrue(LessThan(5, 6).eval())
+        self.assertTrue((a < 5).eval(a=4))
+        self.assertFalse((a < 5).eval(a=6))
 
-        self.assertTrue((4 < a).eval({'a': 5}))
+        self.assertTrue((4 < a).eval(a=5))
