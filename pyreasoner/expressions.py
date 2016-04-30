@@ -77,10 +77,9 @@ def _convert_to_conjunctive_normal_form(expr):
                 result = _convert_to_conjunctive_normal_form(
                     And(*(descendant | other_disjuncts for descendant in child.children)))
                 return result
-        else:  # pragma: no cover
-            # This branch would indicate a bug in recursive_collapse or
-            # is_disjunction_of_atoms.
-            assert False, 'Bug: Should be unreachable: %r' % expr
+
+        # This would indicate a bug in recursive_collapse or is_disjunction_of_atoms.
+        assert False, 'Bug: Should be unreachable: %r' % expr
     elif isinstance(expr, And):
         return reduce(
             operator.and_,
@@ -184,12 +183,17 @@ class Var(ExpressionNode):
     def __hash__(self):
         return hash(self.name)
 
+    def __lt__(self, other):
+        return LessThan(self, other)
+
+    def __gt__(self, other):
+        return LessThan(other, self)
+
     def __eq__(self, other):
         return isinstance(other, Var) and self.name == other.name
 
 
-class BooleanOperation(ExpressionNode):
-
+class Operation(ExpressionNode):
     def __init__(self, *children):
         self.children = children
 
@@ -210,13 +214,16 @@ class BooleanOperation(ExpressionNode):
             raise ValueError('Cannot specify both namespace and kwargs')
         namespace = namespace or kwargs
         evaluated = [eval_expr(child, namespace) for child in self.children]
-        return reduce(self.operator, evaluated, self.default_reduce_value)
+        if hasattr(self, 'default_reduce_value'):
+            return reduce(self.operator, evaluated, self.default_reduce_value)
+        else:
+            return reduce(self.operator, evaluated)
 
     def __eq__(self, other):
         return type(self) == type(other) and self.children == other.children
 
 
-class Or(BooleanOperation):
+class Or(Operation):
     operator = operator.or_
     default_reduce_value = False  # An empty disjunction is defined to be True.
 
@@ -249,7 +256,7 @@ class Or(BooleanOperation):
         return Or(*children)
 
 
-class And(BooleanOperation):
+class And(Operation):
     operator = operator.and_
     default_reduce_value = True  # An empty conjunction is defined to be False.
 
@@ -268,7 +275,7 @@ class And(BooleanOperation):
         return And(other, *self.children)
 
 
-class Not(BooleanOperation):
+class Not(Operation):
     def __init__(self, child):
         self.children = (child, )
 
@@ -309,6 +316,26 @@ class Not(BooleanOperation):
             return Or(*(Not(descendant).distribute_inwards() for descendant in child.children))
         else:
             return self
+
+
+class BinaryExpression(Operation):
+    operation_name = None
+
+    def __init__(self, lhs, rhs):
+        self.children = self.lhs, self.rhs = [lhs, rhs]
+
+    def __repr__(self):
+        return '(%s %s %s)' % (self.lhs, self.operation_name, self.rhs)
+
+
+class LessThan(BinaryExpression):
+    operation_name = '<'
+    operator = operator.lt
+
+
+class Eq(BinaryExpression):
+    operation_name = '=='
+    operator = operator.eq
 
 
 def get_free_variables(expr):

@@ -5,11 +5,14 @@ import hypothesis
 from nose.tools import assert_true
 
 from .strategies import boolean_expressions
-from ..expressions import And, eval_expr
+from ..expressions import And
+from ..expressions import Eq
+from ..expressions import LessThan
 from ..expressions import Not
 from ..expressions import Or
 from ..expressions import Var
 from ..expressions import convert_to_conjunctive_normal_form
+from ..expressions import eval_expr
 from ..expressions import get_free_variables
 from ..expressions import get_truth_table
 from ..expressions import is_conjunctive_normal_form
@@ -315,3 +318,17 @@ class TestSAT(TestCase):
         truth_table_solutions = set(solve_SAT_truth_table(expr))
         pycosat_solutions = set(solve_SAT(expr))
         self.assertEqual(truth_table_solutions, pycosat_solutions)
+
+
+class TestRelationalExpressions(TestCase):
+    def test_equality(self):
+        self.assertFalse(Eq(5, 6).eval({}))
+        self.assertEqual(Eq(a, 5).reify({'a': 5}), Eq(5, 5))
+        self.assertTrue(Eq(5, 5).eval({}))
+
+    def test_less_than(self):
+        self.assertTrue(LessThan(5, 6).eval({}))
+        self.assertTrue((a < 5).eval({'a': 4}))
+        self.assertFalse((a < 5).eval({'a': 6}))
+
+        self.assertTrue((4 < a).eval({'a': 5}))
