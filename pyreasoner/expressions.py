@@ -333,11 +333,6 @@ class LessThan(BinaryExpression):
     operator = operator.lt
 
 
-class GreaterThan(BinaryExpression):
-    operation_name = '>'
-    operator = operator.gt
-
-
 class Eq(BinaryExpression):
     operation_name = '=='
     operator = operator.eq

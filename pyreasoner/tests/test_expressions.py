@@ -7,7 +7,6 @@ from nose.tools import assert_true
 from .strategies import boolean_expressions
 from ..expressions import And
 from ..expressions import Eq
-from ..expressions import GreaterThan
 from ..expressions import LessThan
 from ..expressions import Not
 from ..expressions import Or
@@ -332,7 +331,4 @@ class TestRelationalExpressions(TestCase):
         self.assertTrue((a < 5).eval({'a': 4}))
         self.assertFalse((a < 5).eval({'a': 6}))
 
-    def test_greater_than(self):
-        self.assertFalse(GreaterThan(5, 6).eval({}))
-        self.assertTrue((a > 5).eval({'a': 6}))
-        self.assertFalse((a > 5).eval({'a': 4}))
+        self.assertTrue((4 < a).eval({'a': 5}))
