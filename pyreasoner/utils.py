@@ -4,7 +4,7 @@ import tokenize
 
 import six
 
-isidentifier = str.isidentifier if six.PY3 else re.compile('^%s$' % tokenize.Name).match
+isidentifier = re.compile('^%s$' % tokenize.Name).match if six.PY2 else str.isidentifier
 
 
 def is_valid_identifier_for_namedtuple(name):
